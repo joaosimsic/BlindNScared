@@ -21,7 +21,7 @@ typedef struct {
 extern Cell map[MAP_HEIGHT][MAP_WIDTH];
 
 void init_map(void);
-unsigned int get_allowed_neighbors(TileType conter_tile);
+unsigned int get_allowed_neighbors(TileType center_tile);
 int count_possibilities(unsigned int entropy);
 
 #endif // WFC_H
