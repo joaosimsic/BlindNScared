@@ -11,7 +11,7 @@ void render_frame(void) {
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
 
   int oy = (ws.ws_row - MAP_HEIGHT) / 2;
-  int ox = (ws.ws_col - MAP_WIDTH) / 2;
+  int ox = (ws.ws_col - MAP_WIDTH * 2) / 2;
 
   printf("\033[2J");
 
@@ -23,23 +23,23 @@ void render_frame(void) {
       printf("\033[%d;%dH", oy + y + 1, ox + 1);
 
     if (player.y == y && player.x == x) {
-      printf("\033[38;5;226m@\033[0m");
+      printf("\033[38;5;226m@ \033[0m");
     } else {
       TileType tile = map[y][x].final_type;
       const char *symbol;
       int color;
 
       if (tile == TILE_VOID) {
-        symbol = " ";
+        symbol = "  ";
         color = 232;
       } else if (tile == TILE_FLOOR) {
-        symbol = "·";
+        symbol = "· ";
         color = 82;
       } else if (tile == TILE_WALL) {
-        symbol = "█";
+        symbol = "██";
         color = 196;
       } else if (tile == TILE_ALTAR) {
-        symbol = "♦";
+        symbol = "♦ ";
         color = 135;
       } else {
         symbol = "?";
@@ -48,9 +48,6 @@ void render_frame(void) {
 
       printf("\033[38;5;%dm%s\033[0m", color, symbol);
     }
-
-    if (x == MAP_WIDTH - 1)
-      printf("\n");
   }
 
   fflush(stdout);
