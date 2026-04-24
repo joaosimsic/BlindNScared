@@ -13,27 +13,27 @@ void render_frame(void) {
       printf("\033[38;5;226m@\033[0m");
     } else {
       TileType tile = map[y][x].final_type;
-      unsigned char symbol;
+      const char *symbol;
       int color;
 
       if (tile == TILE_VOID) {
-        symbol = ' ';
+        symbol = " ";
         color = 232;
       } else if (tile == TILE_FLOOR) {
-        symbol = 183;
+        symbol = "·";
         color = 82;
       } else if (tile == TILE_WALL) {
-        symbol = 219;
+        symbol = "█";
         color = 196;
       } else if (tile == TILE_ALTAR) {
-        symbol = 4;
+        symbol = "♦";
         color = 135;
       } else {
-        symbol = '?';
+        symbol = "?";
         color = 255;
       }
 
-      printf("\033[38;5;%dm%c\033[0m", color, symbol);
+      printf("\033[38;5;%dm%s\033[0m", color, symbol);
     }
 
     if (x == MAP_WIDTH - 1)

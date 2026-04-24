@@ -4,6 +4,17 @@
 Player player;
 
 void init_player(void) {
+  for (int i = 0; i < MAP_HEIGHT * MAP_WIDTH; i++) {
+    int y = i / MAP_WIDTH;
+    int x = i % MAP_WIDTH;
+
+    if (map[y][x].final_type == TILE_FLOOR) {
+      player.y = y;
+      player.x = x;
+      return;
+    }
+  }
+
   player.y = MAP_HEIGHT / 2;
   player.x = MAP_WIDTH / 2;
 }
