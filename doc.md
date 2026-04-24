@@ -18,7 +18,7 @@ typedef enum {
 } TileType;
 
 typedef struct {
-    unsigned int entropy; // Bitmask of remaining possible TileTypes
+    bool possible[NUM_TILES]; // one bool per tile type                                               
     bool collapsed;       // Is this tile finalized?
     TileType final_type;  // The actual tile chosen
 } Cell;

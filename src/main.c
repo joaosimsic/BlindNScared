@@ -5,7 +5,7 @@ int main() {
   printf("initilizing superposition...\n");
   init_map();
 
-  int entropy_count = count_possibilities(map[0][0].entropy);
+  int entropy_count = count_possibilities(map[0][0].possible);
   printf("System check: Cell [0][0] has %d possible states.\n", entropy_count);
 
   if (entropy_count == 4) {
