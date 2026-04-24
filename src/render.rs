@@ -1,4 +1,4 @@
-use crate::common::{MAP_HEIGHT, MAP_WIDTH, TILE_DOOR, TILE_EXIT, TILE_FLOOR, TILE_WALL};
+use crate::common::{MAP_HEIGHT, MAP_WIDTH, TILE_CORRIDOR, TILE_DOOR, TILE_EXIT, TILE_FLOOR, TILE_WALL};
 use crate::dungeon::World;
 use crate::player::Player;
 use crossterm::terminal;
@@ -21,6 +21,7 @@ pub fn render_frame(world: &World, player: &Player) -> io::Result<()> {
                 let tile = world.map[y][x];
                 let (symbol, color) = match tile {
                     c if c == TILE_FLOOR => ("· ", 82),
+                    c if c == TILE_CORRIDOR => ("· ", 214),
                     c if c == TILE_WALL => ("██", 196),
                     c if c == TILE_EXIT => ("X ", 226),
                     c if c == TILE_DOOR => ("/ ", 208),

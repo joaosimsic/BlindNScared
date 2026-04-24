@@ -1,139 +1,156 @@
-    use crate::common::{Rect, Room, TILE_FLOOR, TILE_WALL, TILE_EXIT};
+use crate::common::{Rect, TILE_DOOR, TILE_EXIT, TILE_FLOOR, TILE_WALL};
 
 pub struct World {
     pub map: Vec<Vec<char>>,
-    pub rooms: Vec<Room>,
     pub width: usize,
     pub height: usize,
+    houses: Vec<Rect>,
 }
 
 impl World {
     pub fn new(width: usize, height: usize) -> Self {
         World {
-            map: vec![vec![TILE_WALL; width]; height],
-            rooms: Vec::new(),
+            map: vec![vec![TILE_FLOOR; width]; height],
             width,
             height,
+            houses: Vec::new(),
         }
     }
 
     pub fn generate(&mut self) {
-        let root = Rect {
-            x: 1,
-            y: 1,
-            w: self.width - 2,
-            h: self.height - 2,
-        };
+        self.fill_rect(0, 0, self.width, self.height, TILE_FLOOR);
 
-        self.bsp_split(root);
-        self.carve_corridors();
+        let num_houses = 1 + rand::random::<usize>() % 3;
+        for _ in 0..num_houses {
+            self.try_place_house();
+        }
+
         self.place_exits();
     }
 
-    fn bsp_split(&mut self, rect: Rect) {
-        if rect.w < 10 || rect.h < 10 {
-            self.carve_room(rect);
+    fn try_place_house(&mut self) {
+        let min_size: usize = 10;
+        let max_w = (self.width / 2).max(min_size + 1);
+        let max_h = (self.height / 2).max(min_size + 1);
+
+        let hw = min_size + rand::random::<usize>() % (max_w - min_size + 1);
+        let hh = min_size + rand::random::<usize>() % (max_h - min_size + 1);
+
+        if hw + 2 >= self.width || hh + 2 >= self.height {
             return;
         }
 
-        let vertical = rand::random::<bool>();
+        let hx = 1 + rand::random::<usize>() % (self.width - hw - 1);
+        let hy = 1 + rand::random::<usize>() % (self.height - hh - 1);
 
-        if vertical {
-            let split_x = rect.x + (2..rect.w - 2).next().unwrap_or(rect.w / 2);
+        let candidate = Rect {
+            x: hx,
+            y: hy,
+            w: hw,
+            h: hh,
+        };
+        let overlaps = self.houses.iter().any(|h| {
+            candidate.x < h.x + h.w
+                && candidate.x + candidate.w > h.x
+                && candidate.y < h.y + h.h
+                && candidate.y + candidate.h > h.y
+        });
 
-            self.bsp_split(Rect {
-                x: rect.x,
-                y: rect.y,
-                w: split_x - rect.x,
-                h: rect.h,
-            });
-
-            self.bsp_split(Rect {
-                x: split_x,
-                y: rect.y,
-                w: rect.x + rect.w - split_x,
-                h: rect.h,
-            });
-        } else {
-            let split_y = rect.y + (2..rect.h - 2).next().unwrap_or(rect.h / 2);
-            self.bsp_split(Rect {
-                x: rect.x,
-                y: rect.y,
-                w: rect.w,
-                h: split_y - rect.y,
-            });
-            self.bsp_split(Rect {
-                x: rect.x,
-                y: split_y,
-                w: rect.w,
-                h: rect.y + rect.h - split_y,
-            });
+        if !overlaps {
+            self.houses.push(candidate);
+            self.build_house(hx, hy, hw, hh);
         }
     }
 
-    fn carve_room(&mut self, rect: Rect) {
-        let x = rect.x + rand::random::<usize>() % 2;
-        let y = rect.y + rand::random::<usize>() % 2;
-        let w = (rect.w - 2).max(3);
-        let h = (rect.h - 2).max(3);
+    fn build_house(&mut self, hx: usize, hy: usize, hw: usize, hh: usize) {
+        self.draw_rect_border(hx, hy, hw, hh);
+        self.fill_rect(hx + 1, hy + 1, hw - 2, hh - 2, TILE_FLOOR);
 
-        let room = Room {
-            x,
-            y,
-            width: w,
-            height: h,
+        self.bsp_split(hx + 1, hy + 1, hw - 2, hh - 2);
+
+        self.place_entry_door(hx, hy, hw, hh);
+    }
+
+    fn bsp_split(&mut self, x: usize, y: usize, w: usize, h: usize) {
+        let min_room_dim = 4;
+        let can_v = w >= min_room_dim * 2 + 1;
+        let can_h = h >= min_room_dim * 2 + 1;
+
+        if !can_v && !can_h {
+            return;
+        }
+
+        let vertical = if can_v && can_h {
+            rand::random::<bool>()
+        } else {
+            can_v
         };
 
-        (0..h)
-            .flat_map(|dy| (0..w).map(move |dx| (dx, dy)))
-            .filter(|(dx, dy)| x + dx < self.width && y + dy < self.height)
-            .for_each(|(dx, dy)| self.map[y + dy][x + dx] = TILE_FLOOR);
+        if vertical {
+            let split_x = x + min_room_dim + rand::random::<usize>() % (w - min_room_dim * 2);
 
-        self.rooms.push(room);
-    }
+            for row in y..y + h {
+                self.map[row][split_x] = TILE_WALL;
+            }
+            let door_y = y + rand::random::<usize>() % h;
+            self.map[door_y][split_x] = TILE_DOOR;
 
-    fn carve_corridors(&mut self) {
-        for i in 0..self.rooms.len() - 1 {
-            let (x1, y1) = (
-                self.rooms[i].x + self.rooms[i].width / 2,
-                self.rooms[i].y + self.rooms[i].height / 2,
-            );
-            let (x2, y2) = (
-                self.rooms[i + 1].x + self.rooms[i + 1].width / 2,
-                self.rooms[i + 1].y + self.rooms[i + 1].height / 2,
-            );
+            self.bsp_split(x, y, split_x - x, h);
+            self.bsp_split(split_x + 1, y, x + w - split_x - 1, h);
+        } else {
+            let split_y = y + min_room_dim + rand::random::<usize>() % (h - min_room_dim * 2);
 
-            self.carve_horizontal_corridor(x1, x2, y1);
-            self.carve_vertical_corridor(y1, y2, x2);
+            for col in x..x + w {
+                self.map[split_y][col] = TILE_WALL;
+            }
+            let door_x = x + rand::random::<usize>() % w;
+            self.map[split_y][door_x] = TILE_DOOR;
+
+            self.bsp_split(x, y, w, split_y - y);
+            self.bsp_split(x, split_y + 1, w, y + h - split_y - 1);
         }
     }
 
-    fn carve_horizontal_corridor(&mut self, x1: usize, x2: usize, y: usize) {
-        let (start, end) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
-
-        (start..=end)
-            .filter(|x| *x < self.width && y < self.height)
-            .for_each(|x| self.map[y][x] = TILE_FLOOR);
+    fn place_entry_door(&mut self, hx: usize, hy: usize, hw: usize, hh: usize) {
+        let side = rand::random::<usize>() % 4;
+        let (dx, dy) = match side {
+            0 => (hx + 1 + rand::random::<usize>() % (hw - 2), hy),
+            1 => (hx + 1 + rand::random::<usize>() % (hw - 2), hy + hh - 1),
+            2 => (hx, hy + 1 + rand::random::<usize>() % (hh - 2)),
+            _ => (hx + hw - 1, hy + 1 + rand::random::<usize>() % (hh - 2)),
+        };
+        self.map[dy][dx] = TILE_DOOR;
     }
 
-    fn carve_vertical_corridor(&mut self, y1: usize, y2: usize, x: usize) {
-        let (start, end) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
-        (start..=end)
-            .filter(|y| *y < self.height && x < self.width)
-            .for_each(|y| self.map[y][x] = TILE_FLOOR);
+    fn draw_rect_border(&mut self, x: usize, y: usize, w: usize, h: usize) {
+        for i in x..x + w {
+            self.map[y][i] = TILE_WALL;
+            self.map[y + h - 1][i] = TILE_WALL;
+        }
+        for i in y..y + h {
+            self.map[i][x] = TILE_WALL;
+            self.map[i][x + w - 1] = TILE_WALL;
+        }
+    }
+
+    fn fill_rect(&mut self, x: usize, y: usize, w: usize, h: usize, tile: char) {
+        for row in y..y + h {
+            for col in x..x + w {
+                if row < self.height && col < self.width {
+                    self.map[row][col] = tile;
+                }
+            }
+        }
     }
 
     fn place_exits(&mut self) {
-        if let Some(room) = self.rooms.first() {
-            let x = room.x + rand::random::<usize>() % room.width;
-            let y = room.y + rand::random::<usize>() % room.height;
+        let floor_tiles: Vec<(usize, usize)> = (0..self.height)
+            .flat_map(|y| (0..self.width).map(move |x| (x, y)))
+            .filter(|&(x, y)| self.map[y][x] == TILE_FLOOR)
+            .collect();
 
-            self.map[y][x] = TILE_EXIT;
-        }
-
-        if let Some(room) = self.rooms.last() {
-            let x = room.x + rand::random::<usize>() % room.width;
-            let y = room.y + rand::random::<usize>() % room.height;
+        if !floor_tiles.is_empty() {
+            let (x, y) = floor_tiles[rand::random::<usize>() % floor_tiles.len()];
             self.map[y][x] = TILE_EXIT;
         }
     }
