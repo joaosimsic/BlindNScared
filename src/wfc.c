@@ -2,6 +2,8 @@
 #include "common.h"
 
 Cell map[MAP_HEIGHT][MAP_WIDTH];
+Coord uncollapsed[MAP_HEIGHT * MAP_WIDTH];
+int uncollapsed_count;
 
 void init_map(void) {
   const Cell default_cell = {.possible = {true, true, true, true},
